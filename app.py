@@ -154,7 +154,8 @@ def build_system_prompt(context):
 
     days_left = (datetime(2026, 6, 10).date() - now.date()).days
 
-    prompt = f"""You are Noah's dedicated fitness coach.
+    # We build the text string first
+    prompt_text = f"""You are Noah's dedicated fitness coach.
 
 CURRENT STATUS:
 - Date: {now.strftime('%A, %B %d, %Y')}
@@ -162,15 +163,15 @@ CURRENT STATUS:
 - Deadline: June 10, 2026 ({days_left} days left)
 
 FORMATTING RULES (STRICT):
-1. **PLAIN TEXT ONLY:** Do NOT use bolding (**), italics (*), or headers (##). 
-2. **BAN THE ASTERISK:** Do not use the '*' character anywhere. If you want to list things, just use dashes (-) or numbers.
-3. **NO SECTIONS:** Do not divide your response into "Observations", "Analysis", etc. Just write paragraphs.
-4. **TEXT MESSAGE STYLE:** Write like a human texting a friend. Short paragraphs. Direct language.
+1. PLAIN TEXT ONLY: Do NOT use bolding, italics, or headers. 
+2. BAN THE ASTERISK: Do not use the asterisk character anywhere. If you want to list things, just use dashes (-) or numbers.
+3. NO SECTIONS: Do not divide your response into "Observations", "Analysis", etc. Just write paragraphs.
+4. TEXT MESSAGE STYLE: Write like a human texting a friend. Short paragraphs. Direct language.
 
 YOUR PROTOCOL:
-1. **Health Check:** If Noah says he is lightheaded or dizzy, prioritize health immediately (food/water/stop training).
-2. **Design for the Time Available:** Fit the workout to the time calculated above.
-3. **Constraints:** NO LUNGES. NO SEAFOOD.
+1. Health Check: If Noah says he is lightheaded or dizzy, prioritize health immediately (food/water/stop training).
+2. Design for the Time Available: Fit the workout to the time calculated above.
+3. Constraints: NO LUNGES. NO SEAFOOD.
 
 CLIENT PROFILE:
 - Weight: 235 lbs | Height: 6'0"
@@ -181,18 +182,22 @@ CONTEXT:
     
     if context['current_program']:
         prog = context['current_program']
-        prompt += f"\nCURRENT PROGRAM (Week {prog.get('week_number', '?')}): {prog['program_details']}\n"
+        prompt_text += f"\nCURRENT PROGRAM (Week {prog.get('week_number', '?')}): {prog['program_details']}\n"
 
     if context['current_nutrition']:
         nutr = context['current_nutrition']
-        prompt += f"\nMACROS: {nutr['calories']}kcals ({nutr['protein']}p/{nutr['carbs']}c/{nutr['fats']}f)\n"
+        prompt_text += f"\nMACROS: {nutr['calories']}kcals ({nutr['protein']}p/{nutr['carbs']}c/{nutr['fats']}f)\n"
     
     if context['conversations']:
-        prompt += f"\nLAST 10 MESSAGES:\n"
+        prompt_text += f"\nLAST 10 MESSAGES:\n"
         for msg in context['conversations'][-10:]: 
-            prompt += f"Noah: {msg['user_message']}\nYou: {msg['assistant_message']}\n"
+            prompt_text += f"Noah: {msg['user_message']}\nYou: {msg['assistant_message']}\n"
 
-    prompt += "\nResponse:"
+    prompt_text += "\nResponse:"
+    
+    # *** THIS IS THE FIX FOR THE ERROR ***
+    # We return a LIST of content blocks, not just a string.
+    return [{"type": "text", "text": prompt_text}]
 def save_conversation(user_msg, assistant_msg):
     conn = get_db()
     cursor = conn.cursor()
