@@ -98,27 +98,39 @@ def get_context():
         'recent_metrics': []
     }
     
+    # Helper to turn rows into dictionaries
+    def make_dicts(cursor, rows):
+        columns = [col[0] for col in cursor.description]
+        return [dict(zip(columns, row)) for row in rows]
+
+    # 1. Conversations
     cursor.execute('SELECT user_message, assistant_message, timestamp FROM conversations ORDER BY timestamp DESC LIMIT 30')
     convs = cursor.fetchall()
-    context['conversations'] = [dict(row) for row in reversed(convs)]
+    # We use the helper to safely convert the data
+    context['conversations'] = list(reversed(make_dicts(cursor, convs)))
     
+    # 2. Photos
     cursor.execute('SELECT photo_type, notes, analysis, weight, timestamp FROM progress_photos ORDER BY timestamp DESC LIMIT 20')
     photos = cursor.fetchall()
-    context['progress_photos'] = [dict(row) for row in photos]
+    context['progress_photos'] = make_dicts(cursor, photos)
     
+    # 3. Current Program
     cursor.execute('SELECT program_details, week_number, start_date FROM training_programs WHERE is_current = TRUE ORDER BY start_date DESC LIMIT 1')
     prog = cursor.fetchone()
     if prog:
-        context['current_program'] = dict(prog)
+        # For single items (fetchone), we wrap it in a list, convert, then take the first one
+        context['current_program'] = make_dicts(cursor, [prog])[0]
     
+    # 4. Nutrition
     cursor.execute('SELECT plan_details, calories, protein, carbs, fats, start_date FROM nutrition_plans WHERE is_current = TRUE ORDER BY start_date DESC LIMIT 1')
     nutr = cursor.fetchone()
     if nutr:
-        context['current_nutrition'] = dict(nutr)
+        context['current_nutrition'] = make_dicts(cursor, [nutr])[0]
     
+    # 5. Metrics
     cursor.execute('SELECT weight, notes, timestamp FROM progress_metrics ORDER BY timestamp DESC LIMIT 10')
     metrics = cursor.fetchall()
-    context['recent_metrics'] = [dict(row) for row in metrics]
+    context['recent_metrics'] = make_dicts(cursor, metrics)
     
     cursor.close()
     conn.close()
