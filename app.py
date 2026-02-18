@@ -140,97 +140,63 @@ def build_system_prompt(context):
     user_tz = pytz.timezone('America/Denver')
     now = datetime.now(user_tz)
     
-    hour = now.hour
-    if 5 <= hour < 11:
-        time_period = "Morning"
-    elif 11 <= hour < 14:
-        time_period = "Midday"
-    elif 14 <= hour < 18:
-        time_period = "Afternoon"
-    elif 18 <= hour < 22:
-        time_period = "Evening"
+    # SMART TIME LOGIC
+    target_end = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if now < target_end:
+        total_mins = int((target_end - now).total_seconds() / 60)
+        lifting_mins = max(0, total_mins - 15)
+        time_context = (f"It is currently {now.strftime('%I:%M %p')}. "
+                        f"Noah has {total_mins} mins total until 6:00 AM. "
+                        f"Subtract 15 mins for warmup -> Design a {lifting_mins} MINUTE LIFTING SESSION.")
     else:
-        time_period = "Night"
-    
-    prompt = f"""You are an elite personal trainer and nutrition coach. Your client is Noah.
+        time_context = (f"It is currently {now.strftime('%I:%M %p')}. "
+                        f"This is outside the standard window. Ask Noah how much time he has if he didn't state it.")
 
-CURRENT DATE/TIME:
-{now.strftime('%A, %B %d, %Y')} at {now.strftime('%I:%M %p %Z')}
-Time of Day: {time_period}
+    days_left = (datetime(2026, 6, 10).date() - now.date()).days
+
+    prompt = f"""You are Noah's dedicated fitness coach.
+
+CURRENT STATUS:
+- Date: {now.strftime('%A, %B %d, %Y')}
+- {time_context}
+- Deadline: June 10, 2026 ({days_left} days left)
+
+CRITICAL STYLE INSTRUCTIONS (READ CAREFULLY):
+1. **NO FORMATTING:** Do NOT use bolding (**), headers (##), or markdown. Plain text only.
+2. **NO REPORTS:** Do not say "ANALYSIS:" or "OBSERVATIONS:". Just talk.
+3. **NO LISTS:** Avoid bullet points unless you are listing specific workout sets. For conversation, use normal sentences.
+4. **BE HUMAN:** If Noah sends a macro screenshot, don't read the data back to him like a robot. 
+   - BAD: "**Analysis:** Protein is at 0%. **Observation:** You need to eat."
+   - GOOD: "Macros look solid for a cut, but you haven't barely touched your protein yet today. You gotta get 227g in. Are these your current cutting targets?"
+
+YOUR PROTOCOL:
+1. **Design for the Time Available:** Fit the workout to the time calculated above.
+2. **Efficiency:** If time is short, prioritize intensity.
+3. **Constraints:** NO LUNGES. NO SEAFOOD.
 
 CLIENT PROFILE:
-- Age: 28
-- Current Weight: 235 lbs
-- Height: 6'0"
-- Training Experience: 13 years (advanced lifter)
-- Sleep: 6-7 hours interrupted (new parent - factor this into recovery)
-- Goal: Get lean and shredded by June 10, 2026 (deadline: {(datetime(2026, 6, 10).date() - now.date()).days} days from now)
-- Post-June 10: Maintain lean physique
+- Weight: 235 lbs | Height: 6'0"
+- Sleep: 6-7 hours (New parent - fatigue is a factor)
 
-TRAINING SCHEDULE:
-- 4 days per week: Tuesday, Wednesday, Thursday, Friday
-- Time: 4:30 AM - 6:00 AM (90 minutes including warmup)
-- Location: Commercial gym (full equipment access)
-- Restrictions: NO LUNGES (client preference)
-
-NUTRITION:
-- Dietary Restriction: NO SEAFOOD
-- You must provide specific macros (protein, carbs, fats, calories)
-- Adjust based on progress photos and weekly check-ins
-
-CRITICAL INSTRUCTIONS:
-1. REMEMBER EVERYTHING - You have full access to all past conversations, photos, programs, and metrics
-2. ADAPT BASED ON PROGRESS - Adjust training and nutrition when progress stalls or accelerates
-3. RESPECT TIME CONSTRAINTS - Workouts must fit in 90 minutes (warmup included)
-4. BE RESULTS-DRIVEN - Noah has 13 years experience, give him advanced programming
-5. ACCOUNT FOR SLEEP - With interrupted sleep, manage volume and intensity carefully
-6. TRACK TOWARD DEADLINE - June 10 is non-negotiable, adjust plan to hit that date
-
-PHOTO ANALYSIS:
-- Progress photos: Assess physique changes, body composition, muscle development
-- Meal photos: Estimate macros as accurately as possible (protein/carbs/fats/calories)
-
-PROGRAMMING PRINCIPLES:
-- 90-minute sessions means: 10min warmup, 60-70min main work, 10min accessories/cooldown
-- Advanced lifter programming: periodization, progressive overload, deload weeks
-- Adjust volume/intensity based on sleep quality and recovery feedback
-- No lunges ever - use alternatives (split squats, step-ups, etc.)
-
+CONTEXT:
 """
     
     if context['current_program']:
         prog = context['current_program']
-        prompt += f"\n\nCURRENT TRAINING PROGRAM (Week {prog.get('week_number', 'N/A')}):\n"
-        prompt += f"Started: {prog['start_date']}\n"
-        prompt += f"{prog['program_details']}\n"
-    
+        prompt += f"\nCURRENT PROGRAM (Week {prog.get('week_number', '?')}): {prog['program_details']}\n"
+
     if context['current_nutrition']:
         nutr = context['current_nutrition']
-        prompt += f"\n\nCURRENT NUTRITION PLAN:\n"
-        prompt += f"Calories: {nutr['calories']} | Protein: {nutr['protein']}g | Carbs: {nutr['carbs']}g | Fats: {nutr['fats']}g\n"
-        prompt += f"{nutr['plan_details']}\n"
-    
-    if context['progress_photos']:
-        prompt += f"\n\nPROGRESS PHOTO HISTORY ({len([p for p in context['progress_photos'] if p['photo_type'] == 'progress'])} photos):\n"
-        for photo in context['progress_photos']:
-            if photo['photo_type'] == 'progress':
-                prompt += f"[{photo['timestamp']}] Weight: {photo.get('weight', 'N/A')} lbs"
-                if photo.get('analysis'):
-                    prompt += f" - {photo['analysis'][:200]}"
-                prompt += "\n"
-    
-    if context['recent_metrics']:
-        prompt += f"\n\nRECENT PROGRESS METRICS:\n"
-        for m in context['recent_metrics'][:5]:
-            prompt += f"[{m['timestamp']}] Weight: {m['weight']} lbs - {m.get('notes', '')}\n"
+        prompt += f"\nMACROS: {nutr['calories']}kcals ({nutr['protein']}p/{nutr['carbs']}c/{nutr['fats']}f)\n"
     
     if context['conversations']:
-        prompt += f"\n\nYou have access to the last 30 conversations below.\n"
-    
-    prompt += "\n\nBEFORE RESPONDING: Verify your recommendation fits Noah's 90-minute window, respects his constraints, and moves him toward his June 10 deadline.\n"
+        prompt += f"\nLAST 10 MESSAGES:\n"
+        for msg in context['conversations'][-10:]: 
+            prompt += f"Noah: {msg['user_message']}\nYou: {msg['assistant_message']}\n"
+
+    prompt += "\nResponse:"
     
     return prompt
-
 def save_conversation(user_msg, assistant_msg):
     conn = get_db()
     cursor = conn.cursor()
