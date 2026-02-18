@@ -244,7 +244,9 @@ def save_conversation(user_msg, assistant_msg):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    context = get_context()
+    chat_history = list(context['conversations'])
+    return render_template('index.html', chat_history=chat_history)
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
