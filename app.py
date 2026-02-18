@@ -125,7 +125,7 @@ def get_context():
     return context
 
 def build_system_prompt(context):
-    user_tz = pytz.timezone('America/New_York')
+    user_tz = pytz.timezone('America/Denver')
     now = datetime.now(user_tz)
     
     hour = now.hour
