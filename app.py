@@ -152,7 +152,7 @@ CLIENT PROFILE:
 - Height: 6'0"
 - Training Experience: 13 years (advanced lifter)
 - Sleep: 6-7 hours interrupted (new parent - factor this into recovery)
-- Goal: Get lean and shredded by June 10, 2026 (deadline: {(datetime(2026, 6, 10) - now.date()).days} days from now)
+- Goal: Get lean and shredded by June 10, 2026 (deadline: {(datetime(2026, 6, 10).date() - now.date()).days} days from now)
 - Post-June 10: Maintain lean physique
 
 TRAINING SCHEDULE:
