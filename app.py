@@ -4,8 +4,7 @@ from datetime import datetime
 import pytz
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pg8000
 from urllib.parse import urlparse
 import anthropic
 
@@ -17,13 +16,12 @@ def get_db():
     if not database_url:
         raise Exception('DATABASE_URL not set')
     result = urlparse(database_url)
-    conn = psycopg2.connect(
+    conn = pg8000.connect(
         host=result.hostname,
         port=result.port,
         user=result.username,
         password=result.password,
-        database=result.path[1:],
-        cursor_factory=RealDictCursor
+        database=result.path[1:]
     )
     return conn
 
